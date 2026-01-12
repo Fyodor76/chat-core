@@ -1,0 +1,59 @@
+stages:
+  - install
+  - build
+  - deploy
+
+cache:
+  paths:
+    - node_modules/  # Кэшируем node_modules для ускорения последующих сборок
+
+variables:
+  SERVER_DIR: /home/quizzerhub-core  # Рабочая директория на сервере
+  DOCKER_COMPOSE_FILE: docker-compose.prod.yml  # Файл docker-compose для production
+
+install_dependencies:
+  stage: install
+  image: node:20  # Используем официальный образ Node.js 20
+  script:
+    - yarn install --frozen-lockfile  # Устанавливаем зависимости с фиксированными версиями
+  artifacts:
+    paths:
+      - node_modules/  # Сохраняем зависимости для следующих этапов
+  only:
+    - main  # Запускаем только для ветки main
+
+build_project:
+  stage: build
+  image: node:20
+  script:
+    - yarn build  # Собираем production-сборку проекта
+  artifacts:
+    paths:
+      - dist/  # Сохраняем собранные файлы
+  only:
+    - main
+
+deploy_to_server:
+  stage: deploy
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan $SERVER_IP >> ~/.ssh/known_hosts
+  script:
+    # Копируем только необходимые файлы
+    - rsync -avz --delete ./dist/ $SSH_USER@$SERVER_IP:$SERVER_DIR/dist/
+    - rsync -avz package.json $SSH_USER@$SERVER_IP:$SERVER_DIR/
+    - rsync -avz yarn.lock $SSH_USER@$SERVER_IP:$SERVER_DIR/
+    - rsync -avz Dockerfile.prod $SSH_USER@$SERVER_IP:$SERVER_DIR/
+    
+    # Перезапускаем контейнеры
+    - ssh $SSH_USER@$SERVER_IP "
+      cd $SERVER_DIR &&
+      docker compose -f docker-compose.prod.yml down --volumes &&
+      docker compose -f docker-compose.prod.yml up -d --build
+      "
+  only:
+    - main

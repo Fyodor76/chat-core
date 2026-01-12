@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: solitude-postgres
+    restart: unless-stopped
+    ports: []
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - solitude-network
+
+  redis:
+    image: redis:7
+    container_name: solitude-redis
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT}:6379'
+    command: redis-server --appendonly no --save ""
+    networks:
+      - solitude-network
+
+  backend-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: solitude-core-backend:latest
+    container_name: solitude-backend-prod
+    restart: unless-stopped
+    ports:
+      - '${APP_PORT}:8080'
+    depends_on:
+      - postgres
+      - redis
+      - loki
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      REDIS_PORT: ${REDIS_PORT}
+      APP_PORT: ${APP_PORT}
+      MAIL_USER: ${MAIL_USER}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      LOKI_URL: ${LOKI_URL}  
+      IN_DOCKER: 'true' 
+    networks:
+      - solitude-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  loki:
+    image: grafana/loki:latest
+    container_name: solitude-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yml 
+    
+    ports: 
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+      - ./configs/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+    networks:
+      - solitude-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: solitude-grafana
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    environment:
+      - GF_SERVER_HTTP_PORT=9091
+      - GF_SERVER_DOMAIN=monitor.solitude-store.ru
+      - GF_SERVER_ROOT_URL=https://monitor.solitude-store.ru/
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_FEATURE_TOGGLES_ENABLE=lokiLive  
+    depends_on:
+      - loki
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - solitude-network
+
+volumes:
+  pgdata:
+  loki_data:
+  grafana_data:
+
+networks:
+  solitude-network:
+    driver: bridge
