@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AuthDto } from '../dto/auth.dto';
+import { AuthDto } from './dto/auth.dto';
 import { UserRepository } from 'src/users/domain/repository/user.repository';
 import { throwUnauthorized } from 'src/common/exceptions/http-exception.helper';
 import { TokenService } from 'src/common/tokens/token.service';

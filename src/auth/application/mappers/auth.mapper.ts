@@ -1,4 +1,4 @@
-import { AuthResponseDto } from 'src/auth/dto/auth-response.dto';
+import { AuthResponseDto } from 'src/auth/application/dto/auth-response.dto';
 import { UserEntity } from 'src/users/domain/entities/user.entity';
 
 export class AuthMapper {

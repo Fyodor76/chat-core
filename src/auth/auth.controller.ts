@@ -1,8 +1,16 @@
-import { Controller, Post, HttpCode, Body, Req } from '@nestjs/common';
-import { AuthDto } from './dto/auth.dto';
+import {
+  Controller,
+  Post,
+  HttpCode,
+  Body,
+  Req,
+  Get,
+  Query,
+} from '@nestjs/common';
+import { AuthDto } from './application/dto/auth.dto';
 import { AuthApplication } from './application/auth.service';
 import { AuthMapper } from './application/mappers/auth.mapper';
-import { RefreshTokenDto } from './dto/refresh.dto';
+import { RefreshTokenDto } from './application/dto/refresh.dto';
 import { Auth } from 'src/common/decorators/auth';
 import { ApiTags } from '@nestjs/swagger';
 import {
@@ -53,5 +61,39 @@ export class AuthController {
   async logoutAll(@Req() req) {
     const userId = req.user.id;
     return new BaseResponseDto(this.authApplication.logoutAllDevices(userId));
+  }
+
+  @Get('telegram')
+  async handleTelegramAuth(@Query() query: any) {
+    console.log('🔥 TELEGRAM AUTH REQUEST:');
+    console.log('Full query:', JSON.stringify(query, null, 2));
+
+    // Проверяем, что это действительно запрос от Telegram
+    if (!query.id || !query.hash) {
+      console.log('⚠️ Not a Telegram request');
+      return { error: 'Invalid request' };
+    }
+
+    console.log('✅ Telegram user authenticated:');
+    console.log(`  ID: ${query.id}`);
+    console.log(`  Name: ${query.first_name} ${query.last_name || ''}`);
+    console.log(`  Username: @${query.username || 'none'}`);
+    console.log(
+      `  Auth date: ${new Date(query.auth_date * 1000).toISOString()}`,
+    );
+
+    // Здесь будет ваша логика:
+    // 1. Проверка hash (обязательно!)
+    // 2. Поиск/создание пользователя в вашей БД
+    // 3. Генерация JWT токенов для вашей системы
+
+    return {
+      ok: true,
+      message: 'Telegram auth received',
+      telegramId: query.id,
+      // Возвращайте ваши JWT токены, когда настроите логику
+      // accessToken: 'your_jwt_token',
+      // refreshToken: 'your_refresh_token'
+    };
   }
 }

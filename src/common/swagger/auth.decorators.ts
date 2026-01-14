@@ -5,8 +5,8 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { AuthResponseDto } from 'src/auth/dto/auth-response.dto';
-import { AuthDto, RefreshTokenDto } from 'src/auth/dto/auth.dto';
+import { AuthResponseDto } from 'src/auth/application/dto/auth-response.dto';
+import { AuthDto, RefreshTokenDto } from 'src/auth/application/dto/auth.dto';
 
 export function ApiLogin() {
   return applyDecorators(
